@@ -1,0 +1,10 @@
+streamlit>=1.36
+geopandas>=1.0
+shapely>=2.0
+pandas
+numpy
+matplotlib
+contextily
+rasterio
+earthengine-api
+geemap
