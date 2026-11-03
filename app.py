@@ -56,11 +56,13 @@ st.set_page_config(page_title="Land & Water Explorer", page_icon="💧", layout=
 
 # Fixed local groundwater resources layer (CGWB assessment units).
 # Change this to the actual file on your machine (.shp, .geojson, .gpkg, .kml or a .zip).
-GW_DATA_PATH = r"gw_prospects_dist.gpkg"
+GW_DATA_PATH = r"C:\Users\Lenovo\EQ\Sanjay\soil moisture\gw_data.shp"
 
 # Your Google Cloud project registered for Earth Engine (e.g. "ee-sanjay").
 # Find it at https://console.cloud.google.com (project picker at the top).
-EE_PROJECT = "eq-project-511406"
+EE_PROJECT = ""
+
+APP_VERSION = "2026-11-03b"  # shown in the sidebar so you can confirm which code is deployed
 
 UPLOAD_DIR = os.path.join(tempfile.gettempdir(), "land_water_explorer")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -95,22 +97,62 @@ def capture_output():
         yield buf
 
 
+SA_SECTION_NAMES = ("gee_service_account", "gcp_service_account", "earthengine", "gee",
+                    "service_account")
+
+
+def _load_service_account():
+    """Find service-account credentials in st.secrets.
+
+    Accepts a [gee_service_account] TOML section (or a similar name), the JSON key pasted
+    as a string under one of those names, or the key's fields pasted at the top level.
+    Returns (info_dict or None, list of top-level secret names found).
+    """
+    try:
+        names = list(st.secrets.keys())
+    except Exception:  # no secrets file at all (e.g. running locally)
+        return None, []
+
+    info = None
+    for name in SA_SECTION_NAMES:
+        if name in st.secrets:
+            raw = st.secrets[name]
+            info = json.loads(raw) if isinstance(raw, str) else dict(raw)
+            break
+
+    if info is None and "client_email" in st.secrets and "private_key" in st.secrets:
+        info = {k: st.secrets[k] for k in names if isinstance(st.secrets[k], (str, int, float))}
+
+    if info:
+        # Keys pasted with literal "\\n" sequences need real newlines
+        info["private_key"] = str(info.get("private_key", "")).replace("\\n", "\n")
+    return info, names
+
+
 @st.cache_resource(show_spinner="Connecting to Google Earth Engine…")
 def init_ee(project):
     """Initialise Earth Engine with a service account from st.secrets, or local credentials."""
-    sa = None
-    try:
-        if "gee_service_account" in st.secrets:
-            sa = dict(st.secrets["gee_service_account"])
-    except Exception:
-        sa = None
+    sa, secret_names = _load_service_account()
 
     if sa:
+        missing = [k for k in ("client_email", "private_key") if not sa.get(k)]
+        if missing:
+            raise RuntimeError(f"Service account secret is missing: {', '.join(missing)}.")
         creds = ee.ServiceAccountCredentials(sa["client_email"], key_data=json.dumps(sa))
         ee.Initialize(creds, project=project or sa.get("project_id"))
-    else:
+        return f"service account {sa['client_email']}"
+
+    try:
         ee.Initialize(project=project or None)
-    return True
+        return "local credentials"
+    except Exception as e:
+        found = ", ".join(secret_names) if secret_names else "none"
+        raise RuntimeError(
+            "No Earth Engine service account found in Streamlit secrets "
+            f"(top-level secret names found: {found}). Add a [gee_service_account] "
+            "section in the app's Settings → Secrets, or run `earthengine authenticate` "
+            f"when running locally. Original error: {e}"
+        ) from e
 
 
 # ----------------------------------------------------------------------------
@@ -383,6 +425,16 @@ with st.sidebar:
     ee_project = st.text_input("Cloud project ID", EE_PROJECT,
                                help="Your Google Cloud project registered for Earth Engine.").strip()
 
+    _sa, _secret_names = _load_service_account()
+    if _sa:
+        st.success(f"Service account found: {_sa.get('client_email', '?')}")
+    elif _secret_names:
+        st.warning("Secrets found, but no service account in them. "
+                   f"Top-level names: {', '.join(_secret_names)}")
+    else:
+        st.info("No Streamlit secrets found — using local Earth Engine login.")
+    st.caption(f"App version {APP_VERSION}")
+
 if not kml_file:
     st.info("Upload a KML boundary in the sidebar to begin.")
     st.stop()
@@ -436,11 +488,14 @@ with tab_sm:
                      "or set EE_PROJECT at the top of app.py.")
             st.stop()
         try:
-            init_ee(ee_project)
+            ee_user = init_ee(ee_project)
+            st.caption(f"Earth Engine: connected with {ee_user}")
             with st.spinner("Querying Earth Engine…"):
                 results[result_key("sm")] = run_soil_moisture(*args)
         except Exception as e:
             st.error(f"Soil moisture request failed: {e}")
+            with st.expander("Error details"):
+                st.exception(e)
 
     df = results.get(result_key("sm"))
     if df is not None:
