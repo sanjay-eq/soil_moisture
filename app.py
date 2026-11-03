@@ -60,7 +60,7 @@ GW_DATA_PATH = r"C:\Users\Lenovo\EQ\Sanjay\soil moisture\gw_data.shp"
 
 # Your Google Cloud project registered for Earth Engine (e.g. "ee-sanjay").
 # Find it at https://console.cloud.google.com (project picker at the top).
-EE_PROJECT = ""
+EE_PROJECT = "eq-project-511406"
 
 APP_VERSION = "2026-11-03b"  # shown in the sidebar so you can confirm which code is deployed
 
