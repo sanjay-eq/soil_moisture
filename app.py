@@ -56,7 +56,7 @@ st.set_page_config(page_title="Land & Water Explorer", page_icon="💧", layout=
 
 # Fixed local groundwater resources layer (CGWB assessment units).
 # Change this to the actual file on your machine (.shp, .geojson, .gpkg, .kml or a .zip).
-GW_DATA_PATH = r"C:\Users\Lenovo\EQ\Sanjay\soil moisture\gw_data.shp"
+GW_DATA_PATH = r"gw_prospects_dist.gpkg"
 
 # Your Google Cloud project registered for Earth Engine (e.g. "ee-sanjay").
 # Find it at https://console.cloud.google.com (project picker at the top).
