@@ -155,6 +155,17 @@ def init_ee(project):
         ) from e
 
 
+def ee_fc_to_df(fc):
+    """FeatureCollection -> DataFrame without geemap.ee_to_df (broken with pandas 3)."""
+    try:
+        df = ee.data.computeFeatures({"expression": fc, "fileFormat": "PANDAS_DATAFRAME"})
+        df = pd.DataFrame(df)
+    except Exception:
+        feats = fc.getInfo().get("features", [])
+        df = pd.DataFrame([f.get("properties", {}) for f in feats])
+    return df.drop(columns=["geo"], errors="ignore")
+
+
 # ----------------------------------------------------------------------------
 # Core analysis class (same logic as the original, returning data instead of printing)
 # ----------------------------------------------------------------------------
@@ -213,7 +224,7 @@ class SoilMoisture:
             return ee.Feature(None, values).set("date", img.date().format("YYYY-MM-dd"))
 
         extracted = ee.FeatureCollection(soil_data.map(extract_mean))
-        return geemap.ee_to_df(extracted)
+        return ee_fc_to_df(extracted)
 
     # ---------- AOI map ----------
     def visualize(self, zoom=17):
