@@ -52,7 +52,7 @@ try:
 except Exception:
     pass
 
-st.set_page_config(page_title="Land & Water Explorer", page_icon="💧", layout="wide")
+st.set_page_config(page_title="Soil Moisture Explorer", layout="wide")
 
 # Fixed local groundwater resources layer (CGWB assessment units).
 # Change this to the actual file on your machine (.shp, .geojson, .gpkg, .kml or a .zip).
@@ -420,7 +420,7 @@ def run_soil_type(kml_path, gw_path, start, end):
 # ----------------------------------------------------------------------------
 # UI
 # ----------------------------------------------------------------------------
-st.title("Land & Water Explorer")
+st.title("Soil Moisture Explorer")
 st.caption("Upload a field or village boundary to see soil moisture, groundwater and soil type for it.")
 
 with st.sidebar:
